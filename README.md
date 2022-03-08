@@ -4,6 +4,30 @@ Paper: https://arxiv.org/abs/2010.13993
 
 This directory contains OGB submissions. All hyperparameters were tuned on the validation set with optuna, except for products, which was hand tuned. All experiments were run with a RTX 2080 TI with 11GB.
 
+## Setup
+Several Python packages are dependencies:
+
+```
+pip install julia
+pip install h5py
+pip install optuna
+pip install torch-scatter
+pip install torch-sparse
+pip install torch-geometric
+pip install pyg
+pip install dg
+pip install ogb
+pip install scipy
+pip install networkx
+```
+**NOTE**: We have not set up Julia yet, which will cause failures when the spectral embedding is required (e.g., in `python gen_models.py --dataset arxiv --model mlp --use_embeddings`).
+
+This one is admittedly dirty, but for `ogb.nodeproppred.Evaluator` to recognise Cora, one has to modify `master.csv` found inside `site-packages/ogb/nodeproppred/` (mine is at `/Users/samdatta/miniconda/envs/gmlpipe/lib/python3.9/site-packages/ogb/nodeproppred/` - your's may be different). I did it with:
+
+```sh
+cp ogbn-cora-submission/master.csv /Users/samdatta/miniconda/envs/gmlpipe/lib/python3.9/site-packages/ogb/nodeproppred/
+```
+
 ## Some Tips 
 - In general, the more complex and "smooth" your GNN is, the less likely it'll be that applying the "Correct" portion helps performance. In those cases, you may consider just applying the "smooth" portion, like we do on the GAT. In almost all cases, applying the "smoothing" component will improve performance. For Linear/MLP models, applying the "Correct" portion is almost always essential for obtaining good performance.
 
@@ -14,6 +38,15 @@ This directory contains OGB submissions. All hyperparameters were tuned on the v
      - On Products, the MLP (74%) is substantially outperformed by ClusterGCN (80%). However, MLP + C&S (84.1%) substantially outperforms ClusterGCN + C&S (82.4%).
 
 - In general, autoscale works more reliably than fixedscale, even though fixedscale may make more sense...
+
+## Cora
+**NOTE**: The current version of the code does not aim to reproduce the paper exactly - while we use (inside `adapter.py`, which downloads Cora from DGL and packages it for a submission to OGB) the standard train-val-test split of 140:500:1000, the C&S paper reportedly used a 60:20:20 _random_ split (see Sec. 3).
+
+### Experiments
+- `python run_experiments.py --dataset cora --method lp` gives val/test accuracies of 0.698/0.707.
+- `python gen_models.py --dataset arxiv --model mlp --use_embeddings` gives val/test accuracies of 76.6600 ± 0.8796/76.9600 ± 1.0384.
+
+**NOTE** Other models (e.g., GAT+C&S) have not been tested yet. Most likely, those pathways will throw errors (the original code has quite a bit of code-duplication - not all pathways were modified to accept Cora). However, fixing them should be routine.
 
 ## Arxiv
 
