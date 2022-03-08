@@ -23,9 +23,12 @@ import shutil
 
 from logger import Logger
 
+from adapter import *
+
+
 class MLP(torch.nn.Module):
     def __init__(self, in_channels, hidden_channels, out_channels, num_layers,
-                 dropout, relu_first = True):
+                 dropout, relu_first=True):
         super(MLP, self).__init__()
         self.lins = torch.nn.ModuleList()
         self.lins.append(torch.nn.Linear(in_channels, hidden_channels))
@@ -45,7 +48,7 @@ class MLP(torch.nn.Module):
         for bn in self.bns:
             bn.reset_parameters()
 
-    def forward(self, x):    
+    def forward(self, x):
         for i, lin in enumerate(self.lins[:-1]):
             x = lin(x)
             if self.relu_first:
@@ -54,12 +57,10 @@ class MLP(torch.nn.Module):
             if not self.relu_first:
                 x = F.relu(x, inplace=True)
 
-
             x = F.dropout(x, p=self.dropout, training=self.training)
         x = self.lins[-1](x)
         return F.log_softmax(x, dim=-1)
-    
-    
+
 
 class MLPLinear(torch.nn.Module):
     def __init__(self, in_channels, out_channels):
@@ -72,7 +73,7 @@ class MLPLinear(torch.nn.Module):
     def forward(self, x):
         return F.log_softmax(self.lin(x), dim=-1)
 
-    
+
 def train(model, x, y_true, train_idx, optimizer):
     model.train()
 
@@ -107,9 +108,7 @@ def test(model, x, y, split_idx, evaluator):
 
     return (train_acc, valid_acc, test_acc), out
 
-    
-        
-            
+
 def main():
     parser = argparse.ArgumentParser(description='gen_models')
     parser.add_argument('--device', type=int, default=0)
@@ -127,50 +126,71 @@ def main():
     args = parser.parse_args()
     print(args)
 
-    
     device = f'cuda:{args.device}' if torch.cuda.is_available() else 'cpu'
     device = torch.device(device)
 
-    dataset = PygNodePropPredDataset(name=f'ogbn-{args.dataset}',transform=T.ToSparseTensor())
-    
+    try:
+        dataset = PygNodePropPredDataset(
+            name=f'ogbn-{args.dataset}', transform=T.ToSparseTensor())
+    except ValueError:
+        dataset = dgl_to_ogbn(
+            args.dataset, '/Users/samdatta/res/data/ogbn-cora', is_sparse=True)
+    data = dataset[0]
+
     data = dataset[0]
     data.adj_t = data.adj_t.to_symmetric()
-    
+
     x = data.x
 
-    
     split_idx = dataset.get_idx_split()
-    preprocess_data = PygNodePropPredDataset(name=f'ogbn-{args.dataset}')[0]
+    try:
+        preprocess_data = PygNodePropPredDataset(
+            name=f'ogbn-{args.dataset}')[0]
+    except ValueError:
+        preprocess_data = dgl_to_ogbn(
+            args.dataset, '/Users/samdatta/res/data/ogbn-cora')[0]
+
     if args.dataset == 'arxiv':
-        embeddings = torch.cat([preprocess(preprocess_data, 'diffusion', post_fix=args.dataset), 
+        embeddings = torch.cat([preprocess(preprocess_data, 'diffusion', post_fix=args.dataset),
                                 preprocess(preprocess_data, 'spectral', post_fix=args.dataset)], dim=-1)
     elif args.dataset == 'products':
-        embeddings = preprocess(preprocess_data, 'spectral', post_fix=args.dataset)
-        
+        embeddings = preprocess(
+            preprocess_data, 'spectral', post_fix=args.dataset)
+    elif args.dataset == 'cora':
+        embeddings = preprocess(
+            preprocess_data, 'diffusion', post_fix=args.dataset, is_ogb_submission=True)
+
     if args.use_embeddings:
         x = torch.cat([x, embeddings], dim=-1)
-        
+
     if args.dataset == 'arxiv':
         x = (x-x.mean(0))/x.std(0)
 
-    if args.model == 'mlp':        
-        model = MLP(x.size(-1),args.hidden_channels, dataset.num_classes, args.num_layers, 0.5, args.dataset == 'products').cuda()
-    elif args.model=='linear':
-        model = MLPLinear(x.size(-1), dataset.num_classes).cuda()
-    elif args.model=='plain':
-        model = MLPLinear(x.size(-1), dataset.num_classes).cuda()
+    if args.model == 'mlp':
+        # model = MLP(x.size(-1), args.hidden_channels, dataset.num_classes,
+        #             args.num_layers, 0.5, args.dataset == 'products').cuda()
+        model = MLP(x.size(-1), args.hidden_channels, dataset.num_classes,
+                    args.num_layers, 0.5, args.dataset == 'products').to(device)
+    elif args.model == 'linear':
+        # model = MLPLinear(x.size(-1), dataset.num_classes).cuda()
+        model = MLPLinear(x.size(-1), dataset.num_classes).to(device)
+    elif args.model == 'plain':
+        # model = MLPLinear(x.size(-1), dataset.num_classes).cuda()
+        model = MLPLinear(x.size(-1), dataset.num_classes).to(device)
 
     x = x.to(device)
     y_true = data.y.to(device)
-    train_idx = split_idx['train'].to(device)
 
-    
+    if torch.is_tensor(split_idx['train']):
+        train_idx = split_idx['train'].to(device)
+    else:
+        train_idx = torch.tensor(split_idx['train']).to(device)
+
     model_dir = prepare_folder(f'{args.dataset}_{args.model}', model)
 
-    
     evaluator = Evaluator(name=f'ogbn-{args.dataset}')
     logger = Logger(args.runs, args)
-    
+
     for run in range(args.runs):
         import gc
         gc.collect()
@@ -186,21 +206,19 @@ def main():
             if valid_acc > best_valid:
                 best_valid = valid_acc
                 best_out = out.cpu().exp()
-        
+
             print(f'Run: {run + 1:02d}, '
-                      f'Epoch: {epoch:02d}, '
-                      f'Loss: {loss:.4f}, '
-                      f'Train: {100 * train_acc:.2f}%, '
-                      f'Valid: {100 * valid_acc:.2f}% '
-                      f'Test: {100 * test_acc:.2f}%')
+                  f'Epoch: {epoch:02d}, '
+                  f'Loss: {loss:.4f}, '
+                  f'Train: {100 * train_acc:.2f}%, '
+                  f'Valid: {100 * valid_acc:.2f}% '
+                  f'Test: {100 * test_acc:.2f}%')
             logger.add_result(run, result)
 
         logger.print_statistics(run)
         torch.save(best_out, f'{model_dir}/{run}.pt')
 
     logger.print_statistics()
-
-
 
 
 if __name__ == "__main__":
