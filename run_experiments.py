@@ -30,7 +30,7 @@ def main():
         dataset = PygNodePropPredDataset(name=f'ogbn-{args.dataset}')
     except ValueError:
         dataset = dgl_to_ogbn(
-            args.dataset, '/Users/samdatta/res/data/ogbn-cora')
+            args.dataset, 'ogbn-cora-submission')
     data = dataset[0]
 
     adj, D_isqrt = process_adj(data, args.dataset not in ['arxiv', 'products'])

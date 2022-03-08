@@ -134,7 +134,7 @@ def main():
             name=f'ogbn-{args.dataset}', transform=T.ToSparseTensor())
     except ValueError:
         dataset = dgl_to_ogbn(
-            args.dataset, '/Users/samdatta/res/data/ogbn-cora', is_sparse=True)
+            args.dataset, 'ogbn-cora-submission', is_sparse=True)
     data = dataset[0]
 
     data = dataset[0]
@@ -148,7 +148,7 @@ def main():
             name=f'ogbn-{args.dataset}')[0]
     except ValueError:
         preprocess_data = dgl_to_ogbn(
-            args.dataset, '/Users/samdatta/res/data/ogbn-cora')[0]
+            args.dataset, 'ogbn-cora-submission')[0]
 
     if args.dataset == 'arxiv':
         embeddings = torch.cat([preprocess(preprocess_data, 'diffusion', post_fix=args.dataset),
