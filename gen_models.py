@@ -143,6 +143,9 @@ def main():
     x = data.x
 
     split_idx = dataset.get_idx_split()
+    # print("train_split = ",split_idx["train"])
+    # while True:
+    #     pass
     try:
         preprocess_data = PygNodePropPredDataset(
             name=f'ogbn-{args.dataset}')[0]

@@ -25,6 +25,8 @@ class Logger(object):
 
             best_results = []
             for r in result:
+                # print("r shape = ",r.shape)
+
                 train1 = r[:, 0].max().item()
                 valid = r[:, 1].max().item()
                 train2 = r[r[:, 1].argmax(), 0].item()
@@ -33,7 +35,10 @@ class Logger(object):
 
             best_result = torch.tensor(best_results)
 
+            # try:
             print(f'All runs:')
+            # print("best_result shape = ",best_result.shape)
+
             r = best_result[:, 0]
             print(f'Highest Train: {r.mean():.4f} ± {r.std():.4f}')
             r = best_result[:, 1]
@@ -42,3 +47,5 @@ class Logger(object):
             print(f'  Final Train: {r.mean():.4f} ± {r.std():.4f}')
             r = best_result[:, 3]
             print(f'   Final Test: {r.mean():.4f} ± {r.std():.4f}')
+            # except:
+            #     print("Error in logger")

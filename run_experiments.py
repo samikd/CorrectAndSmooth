@@ -40,7 +40,9 @@ def main():
     evaluator = Evaluator(name=f'ogbn-{args.dataset}')
 
     split_idx = dataset.get_idx_split()
-
+    # print("train_split = ",split_idx["train"])
+    # while True:
+    #     pass
     def eval_test(result, idx=split_idx['test']):
         return evaluator.eval({'y_true': data.y[idx], 'y_pred': result[idx].argmax(dim=-1, keepdim=True), })['acc']
 
@@ -170,12 +172,40 @@ def main():
         }
         plain_fn = double_correlation_autoscale
 
+
+        plain_dict_gen_bound = {
+            'train_only': True,
+            'alpha1': 0.87,
+            'A1': AD,
+            'num_propagations1': 50,
+            'alpha2': 0.81,
+            'A2': DAD,
+            'num_propagations2': 50,
+            'display': False,
+        }
+        plain_fn_gen_bound = double_correlation_autoscale_gen_bound
+
+        plain_dict_gen_bound_no_prop = {
+            'train_only': True,
+            'alpha1': 0.87,
+            'A1': AD,
+            'num_propagations1': 50,
+            'alpha2': 0.81,
+            'A2': DAD,
+            'num_propagations2': 50,
+            'display': False,
+        }
+        plain_fn_gen_bound_no_prop = double_correlation_autoscale_gen_bound
+
         """
         If you tune hyperparameters on test set
         {'alpha1': 0.9988673963255859,
             'alpha2': 0.7942279952481052, 'A1': 'DA', 'A2': 'AD'}
         gets you to 72.64
         """
+        
+
+
         linear_dict = {
             'train_only': True,
             'alpha1': 0.98,
@@ -187,6 +217,20 @@ def main():
             'display': False,
         }
         linear_fn = double_correlation_autoscale
+
+
+
+        linear_dict_gen_bound = {
+            'train_only': True,
+            'alpha1': 0.98,
+            'alpha2': 0.65,
+            'A1': AD,
+            'A2': DAD,
+            'num_propagations1': 50,
+            'num_propagations2': 50,
+            'display': False,
+        }
+        linear_fn_gen_bound = double_correlation_autoscale_gen_bound
 
         """
         If you tune hyperparameters on test set
@@ -206,6 +250,19 @@ def main():
         }
         mlp_fn = double_correlation_autoscale
 
+
+        mlp_dict_gen_bound = {
+            'train_only': True,
+            'alpha1': 0.9791632871592579,
+            'alpha2': 0.7564990804200602,
+            'A1': DA,
+            'A2': AD,
+            'num_propagations1': 50,
+            'num_propagations2': 50,
+            'display': False,
+        }
+        mlp_fn_gen_bound = double_correlation_autoscale_gen_bound
+
         gat_dict = {
             'labels': ['train'],
             'alpha': 0.8,
@@ -214,8 +271,22 @@ def main():
             'display': False,
         }
         gat_fn = only_outcome_correlation
-
-    model_outs = glob.glob(f'models/{args.dataset}_{args.method}/*.pt')
+    split_string = args.method.split("_")
+    print(split_string)
+    if len(split_string)==1:
+        model_outs = glob.glob(f'models/{args.dataset}_{args.method}/*.pt')
+    else:
+        method_to_use = split_string[0]
+        model_outs = glob.glob(f'models/{args.dataset}_{method_to_use}/*.pt')
+        print(f'models/{args.dataset}_{method_to_use}/*.pt')
+    
+    # try:
+    #     model_outs = glob.glob(f'models/{args.dataset}_{args.method}/*.pt')
+    # except:
+    #     split_string = args.method.split("_")
+    #     method_to_use = split_string[0]
+    #     model_outs = glob.glob(f'models/{args.dataset}_{method_to_use}/*.pt')
+    #     print(f'models/{args.dataset}_{split_string}/*.pt')
 
     if args.method == 'lp':
         out = label_propagation(data, split_idx, **lp_dict)
@@ -228,6 +299,15 @@ def main():
         if args.method == 'plain':
             evaluate_params(data, eval_test, model_outs,
                             split_idx, plain_dict, fn=plain_fn)
+        elif args.method == 'plain_gen_bound':
+            evaluate_params(data, eval_test, model_outs,
+                            split_idx, plain_dict_gen_bound, fn=plain_fn_gen_bound)
+        elif args.method == 'linear_gen_bound':
+            evaluate_params(data, eval_test, model_outs,
+                            split_idx, linear_dict_gen_bound, fn=linear_fn_gen_bound)
+        elif args.method == 'mlp_gen_bound':
+            evaluate_params(data, eval_test, model_outs,
+                            split_idx, mlp_dict_gen_bound, fn=mlp_fn_gen_bound)
         elif args.method == 'linear':
             evaluate_params(data, eval_test, model_outs,
                             split_idx, linear_dict, fn=linear_fn)

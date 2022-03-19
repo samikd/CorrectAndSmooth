@@ -3,5 +3,7 @@ dataset/
 logs/
 models/
 embeddings/
+gat/dataset copy/
+gat
 __*
 **/submission_ogbn_cora/*
