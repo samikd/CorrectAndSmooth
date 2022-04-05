@@ -3,10 +3,11 @@
 
 import argparse
 import math
+import string
 import time
 import os
 import shutil
-
+import torch
 import numpy as np
 import torch as th
 import torch.nn.functional as F
@@ -14,7 +15,9 @@ import torch.optim as optim
 from matplotlib import pyplot as plt
 from matplotlib.ticker import AutoMinorLocator, MultipleLocator
 from ogb.nodeproppred import DglNodePropPredDataset, Evaluator
+from adapter import dgl_to_ogbn, dgl_to_dgl_ogbn
 from outcome_correlation import prepare_folder
+from dgl.data import * 
 
 from models import GAT
 
@@ -132,7 +135,7 @@ def run(args, graph, labels, train_idx, val_idx, test_idx, evaluator, n_running)
     # define model and optimizer
     model = gen_model(args)
     print(count_parameters(args))
-    model = model.to(device)
+    model = model.cpu()
 
     optimizer = optim.RMSprop(model.parameters(), lr=args.lr, weight_decay=args.wd)
 
@@ -234,7 +237,8 @@ def main():
     argparser.add_argument("--cpu", action="store_true", help="CPU mode. This option overrides --gpu.")
     argparser.add_argument("--gpu", type=int, default=0, help="GPU device ID.")
     argparser.add_argument("--n-runs", type=int, default=10)
-    argparser.add_argument("--n-epochs", type=int, default=2000)
+    argparser.add_argument("--dataset", type=str, default="arxiv")
+    argparser.add_argument("--n-epochs", type=int, default=1000)
     argparser.add_argument(
         "--use-labels", action="store_true", help="Use labels in the training set as input features."
     )
@@ -256,13 +260,35 @@ def main():
         device = th.device("cuda:%d" % args.gpu)
 
     # load data
-    data = DglNodePropPredDataset(name="ogbn-arxiv")
+    try:
+        data = DglNodePropPredDataset(name=f"ogbn-{args.dataset}")
+        print("#### arxiv type initial = ",type(data))
+    except ValueError:
+        # if 'cora' == args.dataset:
+        #     dataset = CoraGraphDataset()
+        #     dataset_name = 'ogbn-cora'
+        #     print("#### cora type initial = ",type(dataset))
+        #     data = dataset[0]
+        #     print("#### cora type initial = ",type(data))
+
+        data = dgl_to_dgl_ogbn(
+            args.dataset, 'ogbn-cora-submission')
+    # data = DglNodePropPredDataset(name="ogbn-arxiv")
     evaluator = Evaluator(name="ogbn-arxiv")
 
     splitted_idx = data.get_idx_split()
     train_idx, val_idx, test_idx = splitted_idx["train"], splitted_idx["valid"], splitted_idx["test"]
+    print("data = ",data)
+    print("data[0] = ",type(data[0]))
+    print("data[0] = ",data[0])
+    print("data[0][0] type = ",type(data[0][0]))
+    print("data[0][1] type = ",type(data[0][1]))
+    print("graph = ",data[0][0])
+    print("labels = ",data[0][1])
     graph, labels = data[0]
 
+    # while True:
+    #     pass
     # add reverse edges
     srcs, dsts = graph.all_edges()
     graph.add_edges(dsts, srcs)
@@ -275,17 +301,22 @@ def main():
     in_feats = graph.ndata["feat"].shape[1]
     n_classes = (labels.max() + 1).item()
     # graph.create_format_()
-
-    train_idx = train_idx.to(device)
-    val_idx = val_idx.to(device)
-    test_idx = test_idx.to(device)
-    labels = labels.to(device)
-    graph = graph.to(device)
+    if torch.is_tensor(train_idx):
+        train_idx = train_idx.cpu()
+        val_idx = val_idx.cpu()
+        test_idx = test_idx.cpu()
+    else:
+        train_idx = torch.tensor(train_idx).cpu()
+        val_idx = torch.tensor(val_idx).cpu()
+        test_idx = torch.tensor(test_idx).cpu()
+    
+    labels = labels.cpu()
+    graph = graph.cpu()
 
     # run
     val_accs = []
     test_accs = []
-    model_dir = f'../models/arxiv_gat'
+    model_dir = f'../models/{args.dataset}_gat'
        
     if os.path.exists(model_dir):
         shutil.rmtree(model_dir)

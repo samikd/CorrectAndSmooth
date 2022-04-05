@@ -1,0 +1,84 @@
+old-> C&S with gen bound same across all the classes
+new-> C&S with gen bound e_v and e_v/k-1 
+
+# Plain Linear + C&S => performance decreased
+old : 71.84 ± 0.67 -> 74.18 ± 0.62
+new : 69.62 ± 0.99 -> 69.94 ± 1.38
+
+# Linear + C&S => performance increased 
+old : 74.18 ± 0.82 -> 75.29 ± 0.40
+new : 77.10 ± 0.62 -> 77.55 ± 0.40
+
+# MLP + C&S => same 
+old : 78.50 ± 1.33 -> 79.10 ± 1.28        
+new : 78.50 ± 1.33 -> 79.10 ± 1.28
+
+Why the same accuracy in MLP
+We do get a different valued resultant matrix in the end while using different approaches, but they all are very similar to each other hence the same accuracy with MLP.
+
+
+Some observations
+
+- different scale of error vectors
+(a) y[7]  =  tensor([-0.1399, -0.1401, -0.1421, -0.1397,  0.8432, -0.1425, -0.1389])
+(b) y[6]  =  tensor([4.2871e-04, 4.2871e-04, 4.2871e-04, 9.9743e-01, 4.2871e-04, 4.2871e-04, 4.2871e-04])
+
+here vector (a) was given in the training set (size= 140 nodes) and we have negative values also  (effect of equation 1 from C&S paper E = Z - Y). 
+according to the C&S vector (b) should be an zero vector [0,0,0,..0], which we replace with gen bound with e_v and e_v/k-1 (details mentioned above in samiks message) .
+we can observe the difference in the scale of (a) and (b), for the predicted class the scale is similar but for rest of k-1 classes scale is different. 
+
+so when we calculate E, we have 140 rows similar to (a) and rest of 2568 similar to (b)
+also note, from NeurIPS paper we get error estimate of these 2568 node only, and we use this estimate in our pipeline for the rest of the 140 nodes we use E = Z - Y, hence the difference in (a) and (b)
+
+1-e
+PL
+Valid acc -> Test acc
+Args []: 64.88 ± 2.83 -> 67.74 ± 2.71
+
+
+L
+Valid acc -> Test acc
+Args []: 70.00 ± 2.70 -> 71.83 ± 2.37
+
+MLP
+Valid acc -> Test acc
+Args []: 78.50 ± 1.33 -> 79.10 ± 1.28
+
+
+More training data 
+
+Valid acc -> Test acc
+
+PL
+old : 71.84 ± 0.67 -> 74.18 ± 0.62_
+new : 77.82 ± 0.58 -> 87.29 ± 1.38
+
+L
+old : 74.18 ± 0.82 -> 75.29 ± 0.40
+new : 81.92 ± 0.59 -> 90.43 ± 0.90
+
+MLP
+old : 78.50 ± 1.33 -> 79.10 ± 1.28        
+new : 81.12 ± 1.19 -> 98.64 ± 0.23
+
+
+As of now we can see the accuracy increased, it might change a small bit once a correct pipeline is followed, 
+without going into too much deatils, as training set set changed, we need new gen bounds with the given train set,
+
+1-e_v/k-1 did not work well, performance even dropped more
+
+didn't do the random error yet as we got better results with changing the splits
+
+
+new exp
+Valid acc -> Test acc
+Args []: 87.21 ± 0.23 -> 89.30 ± 0.26
+
+
+
+
+
+
+
+
+
