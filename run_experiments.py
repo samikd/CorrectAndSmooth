@@ -1,3 +1,4 @@
+import pandas as pd
 import torch
 import torch.nn.functional as F
 import torch.nn as nn
@@ -20,6 +21,32 @@ from outcome_correlation import *
 from adapter import *
 
 
+def neighboring_node_idx(adj_matrix):
+    new_added_train_idx = pd.read_csv("cora_splits/new_added_train_idx.csv")
+    # print("new_added_train_idx",new_added_train_idx)
+    new_added_neighbors = []
+    
+    for idx in range(len(new_added_train_idx)):
+        row_i = new_added_train_idx.iloc[idx]
+        # print("row_i = ",row_i)
+        row = adj_matrix[row_i][0]
+        # print("row =",  row)
+        indexs=[]
+        for i in range(len(row)):
+            # try:
+            if row[i]==1:
+                indexs.append(i)
+            # except:
+            #     pass
+
+
+        print(indexs)
+        # break
+        new_added_neighbors.extend(indexs)
+    new_added_neighbors = list(set(new_added_neighbors))
+    return new_added_neighbors
+
+
 def main():
     parser = argparse.ArgumentParser(description='Outcome Correlations)')
     parser.add_argument('--dataset', type=str)
@@ -36,13 +63,32 @@ def main():
     adj, D_isqrt = process_adj(data, args.dataset not in ['arxiv', 'products'])
     normalized_adjs = gen_normalized_adjs(adj, D_isqrt)
     DAD, DA, AD = normalized_adjs
-
+    adj_matrix = adj.to_dense()
+    # print("adj_matrix = ",adj_matrix.shape)
+    # # print("adj_matrix [0] = ",adj_matrix[0])
+    # print("adj_matrix = ",adj_matrix)
+    neighbor_nodes = neighboring_node_idx(adj_matrix)
+    # print("neighbor_nodes = ",len(neighbor_nodes))
+    # print("neighbor_nodes = ",neighbor_nodes)
+    # while True:
+    #     pass
     evaluator = Evaluator(name=f'ogbn-{args.dataset}')
 
     split_idx = dataset.get_idx_split()
+    # print("train_split = ",len(split_idx["train"]))
+    # print("train_split = ",type(split_idx["train"]))
     # print("train_split = ",split_idx["train"])
+
+    new_train_id = pd.read_csv("cora_splits/new_train_idx.csv")
+    new_train_id = new_train_id.to_numpy().flatten()
+    split_idx["train"] = new_train_id
+    # print("new_train_id = ",len(new_train_id))
+    # print("new_train_id = ",type(new_train_id))
+    # print("new_train_id = ",new_train_id)
+
     # while True:
     #     pass
+    # split_idx["neighbor_nodes"] = neighbor_nodes
     def eval_test(result, idx=split_idx['test']):
         return evaluator.eval({'y_true': data.y[idx], 'y_pred': result[idx].argmax(dim=-1, keepdim=True), })['acc']
 
@@ -299,6 +345,9 @@ def main():
         if args.method == 'plain':
             evaluate_params(data, eval_test, model_outs,
                             split_idx, plain_dict, fn=plain_fn)
+            new_node_neighbor_acc = evaluate_params_new_nodes(data, eval_test, model_outs,
+                            split_idx,neighbor_nodes, plain_dict, fn=plain_fn)
+            print("new_node_neighbor_acc = ",new_node_neighbor_acc)
         elif args.method == 'plain_gen_bound':
             evaluate_params(data, eval_test, model_outs,
                             split_idx, plain_dict_gen_bound, fn=plain_fn_gen_bound)
@@ -311,9 +360,15 @@ def main():
         elif args.method == 'linear':
             evaluate_params(data, eval_test, model_outs,
                             split_idx, linear_dict, fn=linear_fn)
+            new_node_neighbor_acc = evaluate_params_new_nodes(data, eval_test, model_outs,
+                            split_idx,neighbor_nodes, plain_dict, fn=plain_fn)
+            print("new_node_neighbor_acc = ",new_node_neighbor_acc)
         elif args.method == 'mlp':
             evaluate_params(data, eval_test, model_outs,
                             split_idx, mlp_dict, fn=mlp_fn)
+            new_node_neighbor_acc = evaluate_params_new_nodes(data, eval_test, model_outs,
+                            split_idx,neighbor_nodes, plain_dict, fn=plain_fn)
+            print("new_node_neighbor_acc = ",new_node_neighbor_acc)
         elif args.method == 'gat':
             evaluate_params(data, eval_test, model_outs,
                             split_idx, gat_dict, fn=gat_fn)

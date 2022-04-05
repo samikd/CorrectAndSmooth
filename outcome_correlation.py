@@ -453,6 +453,26 @@ def evaluate_params(data, eval_test, model_outs, split_idx, params, fn=double_co
     logger.display()
     return logger
 
+def evaluate_params_new_nodes(data, eval_test, model_outs, split_idx,neighbor_nodes, params, fn=double_correlation_autoscale):
+    logger = SimpleLogger('evaluate params', [], 2)
+
+    for out in model_outs:
+        model_out, run = model_load(out)
+        if isinstance(model_out, tuple):
+            model_out, t = model_out
+            split_idx = t
+        res_result, result = fn(data, model_out, split_idx, **params)
+        
+        # while True:
+        #     pass
+        new_node_acc = eval_test(result, neighbor_nodes)
+        print(f"new_node_acc: {new_node_acc}")
+        logger.add_result(run, (), (new_node_acc,0))
+    print("new_node_acc RESULTS = ",result)
+    print('new_node_acc , len = ',len(neighbor_nodes))
+    logger.display()
+    return logger
+
 
 def get_run_from_file(out):
     return int(os.path.splitext(os.path.basename(out))[0])

@@ -29,12 +29,12 @@ def dgl_to_ogbn(dataset_name, mapping_path, is_sparse=False):
         np.array(dataset[0].ndata['label']).reshape((num_nodes, 1)))
 
     split_idx = dict()
-    # split_idx['train'] = np.array(g.nodes)[dataset[0].ndata['train_mask']]
-    # split_idx['valid'] = np.array(g.nodes)[dataset[0].ndata['val_mask']]
-    # split_idx['test'] = np.array(g.nodes)[dataset[0].ndata['test_mask']]
-    split_idx['train'] = np.load("cora_splits/cora_train_split.npy")
-    split_idx['valid'] = np.load("cora_splits/cora_validate_split.npy")
-    split_idx['test'] = np.load("cora_splits/cora_test_split.npy")
+    split_idx['train'] = np.array(g.nodes)[dataset[0].ndata['train_mask']]
+    split_idx['valid'] = np.array(g.nodes)[dataset[0].ndata['val_mask']]
+    split_idx['test'] = np.array(g.nodes)[dataset[0].ndata['test_mask']]
+    # split_idx['train'] = np.load("cora_splits/cora_train_split.npy")
+    # split_idx['valid'] = np.load("cora_splits/cora_validate_split.npy")
+    # split_idx['test'] = np.load("cora_splits/cora_test_split.npy")
 
     print("train len = ",len(split_idx['train']))
     

@@ -4,6 +4,6 @@ logs/
 models/
 embeddings/
 gat/dataset copy/
-gat
+gat/ogbn-cora-submission/
 __*
 **/submission_ogbn_cora/*
